@@ -1,0 +1,15 @@
+module.exports = {
+    publicPath: "./",
+    outputDir: "dist",
+    assetsDir: "assets",
+    filenameHashing: false,
+    productionSourceMap: false,
+    configureWebpack: {
+        output: {
+          libraryTarget: "umd"
+        }
+    },
+    configureWebpack: {
+        cache: false
+    }
+  };
