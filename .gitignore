@@ -29,3 +29,5 @@ img
 *.njsproj
 *.sln
 *.sw?
+
+.github
