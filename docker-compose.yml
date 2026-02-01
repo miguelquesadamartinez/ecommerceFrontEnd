@@ -1,0 +1,24 @@
+services:
+  # Frontend Vue.js con Node.js
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: noname_frontend
+    ports:
+      - "5173:5173"
+      - "8080:80"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:90/api
+    networks:
+      - noname_network
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+
+networks:
+  noname_network:
+    driver: bridge
+    external: true

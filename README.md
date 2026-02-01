@@ -74,10 +74,13 @@ Sistema diseñado específicamente para que el personal de atención telefónica
 
 ### Backend Integration
 
-- **Backend:** Laravel (PHP)
+- **Backend:** Laravel (PHP 8.2)
 - **API URL:** `http://127.0.0.1:90/api`
 - **Autenticación:** Laravel Sanctum (Token-based)
 - **Proxy de Desarrollo:** Vite Dev Server
+- **Base de Datos:** MySQL 8.0
+- **Gestión DB:** phpMyAdmin
+- **Docker:** Contenedor Node.js para desarrollo frontend
 
 ---
 
@@ -355,6 +358,301 @@ npm run build
 
 # Los archivos compilados estarán en /dist
 # Copiar contenido de /dist al servidor web (IIS, Apache, Nginx)
+```
+
+---
+
+## 🐳 Docker - Entorno de Desarrollo Frontend
+
+### Descripción
+
+Este proyecto utiliza Docker para contenerizar la aplicación **Vue.js** frontend, facilitando el desarrollo sin necesidad de instalar Node.js localmente. El contenedor se conecta a un backend separado (otro contenedor Docker con Laravel) para la API.
+
+### Contenedor Disponible
+
+- **Node.js 18 Alpine** - Aplicación Vue.js con Vite (Puerto: 5173)
+
+### Configuración de Docker
+
+#### Archivo `docker-compose.yml`
+
+Contiene la definición del servicio frontend:
+
+- Imagen Node.js 18 Alpine (ligera y optimizada)
+- Hot Module Replacement (HMR) activo
+- Volúmenes para sincronización de código
+- Red compartida con el contenedor backend
+
+#### Archivo `Dockerfile`
+
+Imagen personalizada basada en Node.js 18 Alpine que incluye:
+
+- Node.js 18 LTS
+- NPM para gestión de dependencias
+- Vite como servidor de desarrollo
+- Configuración para acceso desde el host
+
+### Instalación con Docker
+
+#### Prerrequisitos
+
+- **Docker Desktop**: Instalado y en ejecución
+- **Docker Compose**: Incluido con Docker Desktop
+- **Backend Docker**: Contenedor del backend corriendo (Laravel en puerto 90)
+
+#### Pasos de Instalación
+
+1. **Clonar el repositorio:**
+
+```bash
+git clone [REPOSITORY_URL]
+cd ecommerceFrontEnd
+```
+
+2. **Configurar variables de entorno:**
+
+El archivo `.env.docker` ya está configurado con:
+
+```env
+# Node Environment
+NODE_ENV=development
+
+# API Backend (se conecta a otro contenedor Docker)
+VITE_API_URL=http://localhost:90/api
+VITE_URL=http://127.0.0.1:90
+
+# Frontend URL
+FRONTEND_URL=http://localhost:5173
+```
+
+3. **Crear red Docker compartida (si no existe):**
+
+```bash
+docker network create noname_network
+```
+
+Esta red permite que el frontend y backend se comuniquen entre contenedores.
+
+4. **Construir y levantar el contenedor:**
+
+```bash
+docker-compose up -d
+```
+
+Este comando:
+
+- Construye la imagen Node.js si no existe
+- Instala automáticamente las dependencias NPM
+- Inicia el servidor Vite en modo desarrollo
+- Configura Hot Module Replacement (HMR)
+
+5. **Verificar que el contenedor está corriendo:**
+
+```bash
+docker-compose ps
+```
+
+Deberías ver:
+
+- `noname_frontend` - Estado: Up
+
+6. **Ver logs del contenedor:**
+
+```bash
+docker-compose logs -f frontend
+```
+
+### Acceso a los Servicios
+
+Una vez levantado el contenedor, puedes acceder a:
+
+- **Frontend Vue.js**: http://localhost:5173
+- **Backend API**: http://localhost:90/api (debe estar corriendo en otro contenedor)
+
+### Comandos Docker Útiles
+
+```bash
+# Levantar el contenedor
+docker-compose up -d
+
+# Detener el contenedor
+docker-compose down
+
+# Ver logs en tiempo real
+docker-compose logs -f
+
+# Ver logs del frontend
+docker-compose logs -f frontend
+
+# Reiniciar el contenedor
+docker-compose restart frontend
+
+# Reconstruir la imagen
+docker-compose build --no-cache
+
+# Entrar al contenedor para debugging
+docker exec -it noname_frontend sh
+
+# Ver estado del contenedor
+docker-compose ps
+
+# Instalar nuevas dependencias (dentro del contenedor)
+docker exec -it noname_frontend npm install [paquete]
+
+# Ejecutar comandos npm
+docker exec -it noname_frontend npm run build
+```
+
+### Gestión de la Base de Datos
+
+#### Acceso desde phpMyAdmin
+
+1. Abre http://localhost:8081
+2. Inicia sesión con:
+   - Servidor: `mysql`
+   - Usuario: `root`
+   - Contraseña: `root_password`
+3. Selecciona la base de datos `noname_ecommerce`
+
+#### Scripts de Inicialización
+
+Los scripts SQL en `docker/mysql/init/` se ejecutan automáticamente al crear el contenedor:
+
+- `01-init.sql`: Crea la base de datos y tablas iniciales
+
+Para añadir más scripts de inicialización, simplemente crea archivos `.sql` en ese directorio.
+
+### Desarrollo con Docker
+
+#### Hot Module Replacement (HMR)
+
+El contenedor está configurado con HMR activo, lo que significa:
+
+- Los cambios en el código se reflejan automáticamente en el navegador
+- No necesitas reiniciar el contenedor al modificar archivos
+- Experiencia de desarrollo similar a ejecutar `npm run dev` localmente
+
+#### Estructura de Volúmenes
+
+```yaml
+volumes:
+  - ./:/app # Sincroniza tu código con el contenedor
+  - /app/node_modules # Usa node_modules del contenedor
+```
+
+Esto permite:
+
+- Editar archivos localmente con tu editor favorito
+- Los cambios se sincronizan automáticamente con el contenedor
+- `node_modules` permanece en el contenedor (evita problemas de compatibilidad)
+
+#### Conexión con Backend
+
+El frontend se conecta al backend usando la red Docker `noname_network`. Asegúrate de que:
+
+1. El backend esté corriendo en otro contenedor
+2. Ambos contenedores estén en la misma red
+3. La variable `VITE_API_URL` apunte al backend correcto
+
+### Troubleshooting Docker
+
+#### El contenedor no inicia
+
+```bash
+# Ver logs de error
+docker-compose logs frontend
+
+# Verificar puertos en uso
+netstat -ano | findstr "5173"
+
+# Reconstruir desde cero
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+#### No se conecta al backend
+
+```bash
+# Verificar que el backend está corriendo
+docker ps | grep backend
+
+# Verificar que ambos contenedores están en la misma red
+docker network inspect noname_network
+
+# Verificar variables de entorno
+docker exec noname_frontend env | grep VITE_API_URL
+```
+
+#### Los cambios no se reflejan
+
+```bash
+# Verificar que el volumen está montado correctamente
+docker inspect noname_frontend | grep -A 10 Mounts
+
+# Reiniciar el contenedor
+docker-compose restart frontend
+
+# Si persiste, reconstruir
+docker-compose down
+docker-compose up -d --build
+```
+
+#### Puerto 5173 en uso
+
+Edita `docker-compose.yml` y cambia el puerto:
+
+```yaml
+ports:
+  - "5174:5173" # Cambiar 5173 por el puerto disponible
+```
+
+#### Limpiar recursos de Docker
+
+```bash
+# Eliminar contenedores detenidos
+docker container prune
+
+# Eliminar imágenes sin usar
+docker image prune
+
+# Limpieza completa (¡cuidado!)
+docker system prune -a
+```
+
+### Configuración Avanzada
+
+#### Construir para Producción
+
+```bash
+# Dentro del contenedor
+docker exec -it noname_frontend npm run build
+
+# O crear un Dockerfile específico para producción
+```
+
+#### Variables de Entorno Personalizadas
+
+Puedes añadir más variables en `docker-compose.yml`:
+
+```yaml
+environment:
+  - NODE_ENV=development
+  - VITE_API_URL=http://localhost:90/api
+  - VITE_CUSTOM_VAR=tu_valor
+```
+
+#### Debugging
+
+```bash
+# Entrar al contenedor
+docker exec -it noname_frontend sh
+
+# Ver procesos corriendo
+ps aux
+
+# Ver logs de Node.js
+npm run dev
 ```
 
 ---
